@@ -44,6 +44,17 @@ var defaultTLSConfig = &tls.Config{
 	},
 }
 
+// DefaultTLSConfig returns a new [*tls.Config] with sensible defaults.
+//
+// The returned config is a clone, so it can be modified without impacting other
+// uses of the config.
+//
+// The default [*tls.Config] returned here is used by our [TLSConfig] if am
+// existing [*tls.Config] is not provided.
+func DefaultTLSConfig() *tls.Config {
+	return defaultTLSConfig.Clone()
+}
+
 // TLSConfig is a wrapper for the stdlib *tls.Config.
 type TLSConfig struct {
 	// Config is the TLS config we are wrapping.
@@ -51,7 +62,7 @@ type TLSConfig struct {
 	// DO NOT pass this TLS config to a server or client, use the GetTLSConfig()
 	// method instead. If you use this TLS config, it will not have the
 	// certificate loaded from CertPath and KeyPath.
-	*tls.Config
+	Config *tls.Config
 
 	// CertPath is a path to a TLS certificate.
 	//
@@ -70,6 +81,13 @@ type TLSConfig struct {
 	// certificate. If both CertPath and KeyPath are provided, a certwatcher
 	// will be automatically configured to watch those paths.
 	watcher *Watcher
+
+	// tlsConfig holds the actual [*tls.Config] that is returned by
+	// [GetTLSConfig].
+	//
+	// This value will only be initialized after the first call to
+	// [GetTLSConfig].
+	tlsConfig *tls.Config
 }
 
 // GetTLSConfig returns the tls.Config for a listener. If CertPath and KeyPath
@@ -82,6 +100,11 @@ func (c *TLSConfig) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 		return nil, nil
 	}
 
+	// If we already have the TLS config, return it.
+	if c.tlsConfig != nil {
+		return c.tlsConfig, nil
+	}
+
 	// If both paths are unset, return the manually created *tls.Config.
 	if c.CertPath == "" && c.KeyPath == "" {
 		return c.Config, nil
@@ -89,32 +112,15 @@ func (c *TLSConfig) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 
 	// If either path is unset, error.
 	if c.CertPath == "" || c.KeyPath == "" {
-		return nil, errors.New("server: both CertPath and KeyPath must both either be unset or set together")
+		return nil, errors.New("certwatcher: CertPath and KeyPath must both be set or unset together")
 	}
 
 	// Get or default the listener's TLS config.
-	tlsConfig := c.Config
-	if tlsConfig == nil {
-		// Default TLS config.
-		tlsConfig = defaultTLSConfig
+	var tlsConfig *tls.Config
+	if c.Config == nil {
+		tlsConfig = DefaultTLSConfig()
 	} else {
-		// If a TLS config is set by the user, attempt to default individual values if they are
-		// unset.
-		if len(tlsConfig.NextProtos) < 1 {
-			tlsConfig.NextProtos = defaultTLSConfig.NextProtos
-		}
-		if len(tlsConfig.CipherSuites) < 1 {
-			tlsConfig.CipherSuites = defaultTLSConfig.CipherSuites
-		}
-		if len(tlsConfig.CurvePreferences) < 1 {
-			tlsConfig.CurvePreferences = defaultTLSConfig.CurvePreferences
-		}
-		if tlsConfig.MinVersion == 0 {
-			tlsConfig.MinVersion = defaultTLSConfig.MinVersion
-		}
-		if tlsConfig.MaxVersion == 0 {
-			tlsConfig.MaxVersion = defaultTLSConfig.MaxVersion
-		}
+		tlsConfig = c.Config
 	}
 
 	// Configure OCSP verification if client auth is configured.
@@ -144,6 +150,6 @@ func (c *TLSConfig) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	// Configure the TLSConfig to use the watcher's GetCertificate.
 	tlsConfig.GetCertificate = c.watcher.GetCertificate
 	tlsConfig.GetClientCertificate = c.watcher.GetClientCertificate
-
-	return tlsConfig, nil
+	c.tlsConfig = tlsConfig
+	return c.tlsConfig, nil
 }

@@ -297,7 +297,7 @@ func (w *Watcher) forPaths(ctx context.Context, fn func(string) error, paths ...
 // certificate when necessary.
 func (w *Watcher) Start(ctx context.Context) {
 	if w.fsWatcher == nil {
-		panic("fsWatcher is nil")
+		panic("certwatcher: fsWatcher is nil")
 		return
 	}
 

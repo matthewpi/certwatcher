@@ -8,7 +8,7 @@ Go package that provides the ability to hot-reload TLS certificates without down
 [pkg.go.dev]:     https://pkg.go.dev/github.com/matthewpi/certwatcher
 [pkg.go.dev_img]: https://img.shields.io/badge/%E2%80%8B-reference-007d9c?logo=go&logoColor=white&style=flat-square
 
-[pipeline]:     https://github.com/matthewpi/certwatcher/actions/workflows/test.yml
+[pipeline]:     https://github.com/matthewpi/certwatcher/actions/workflows/ci.yaml
 [pipeline_img]: https://img.shields.io/github/actions/workflow/status/matthewpi/certwatcher/ci.yaml?style=flat-square&label=tests
 
 ## Usage

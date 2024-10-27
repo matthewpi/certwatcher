@@ -16,70 +16,58 @@ import (
 	"golang.org/x/crypto/ocsp"
 )
 
-// Stapler is used to perform OCSP stapling on a certificate.
-type Stapler struct {
-	// Certificate to staple.
-	Certificate tls.Certificate
-
-	// ocsp is the OCSP response to staple to the certificate.
-	ocsp *ocsp.Response
-}
-
 // ErrNoOCSPServer is returned when there are no OCSP servers found on a Certificate.
-var ErrNoOCSPServer = errors.New("ocsp: no servers")
+var ErrNoOCSPServer = errors.New("ocsp: no server in certificate")
 
-// Staple attempts to staple the certificate.
-func (s *Stapler) Staple(ctx context.Context) (err error) {
-	leaf := s.Certificate.Leaf
-	if leaf == nil {
-		leaf, err = x509.ParseCertificate(s.Certificate.Certificate[0])
-		if err != nil {
-			return err
-		}
-		s.Certificate.Leaf = leaf
+// Staple attempts to staple a [tls.Certificate].
+func Staple(ctx context.Context, c *tls.Certificate) (*QueryResponse, error) {
+	if c.Leaf == nil {
+		return nil, errors.New("ocsp: unable to staple certificate with a nil Leaf")
 	}
 
 	// Check if the leaf certificate has an OCSP server.
-	if len(leaf.OCSPServer) < 1 {
-		return ErrNoOCSPServer
+	if len(c.Leaf.OCSPServer) < 1 {
+		return nil, ErrNoOCSPServer
 	}
 
-	var issuer *x509.Certificate
-	if len(s.Certificate.Certificate) == 1 {
-		issuer, err = getCertificateIssuer(ctx, leaf)
+	var (
+		issuer *x509.Certificate
+		err    error
+	)
+	if len(c.Certificate) == 1 {
+		issuer, err = getCertificateIssuer(ctx, c.Leaf)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
-		issuer, err = x509.ParseCertificate(s.Certificate.Certificate[1])
+		issuer, err = x509.ParseCertificate(c.Certificate[1])
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Query the OCSP server.
 	res, err := Query(ctx, QueryOpts{
-		Certificate: leaf,
+		Certificate: c.Leaf,
 		Issuer:      issuer,
-		ServerURL:   leaf.OCSPServer[0],
+		ServerURL:   c.Leaf.OCSPServer[0],
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check if the OCSP response is somehow valid even after the certificate would expire.
-	if expAt := expiresAt(leaf); res.NextUpdate.After(expAt) {
-		return fmt.Errorf(`ocsp: response for "%s" valid after certificate expiration (%s)`, leaf.Subject.CommonName, expAt.Sub(res.NextUpdate))
+	if expAt := expiresAt(c.Leaf); res.NextUpdate.After(expAt) {
+		return res, fmt.Errorf(`ocsp: response for "%s" valid after certificate expiration (%s)`, c.Leaf.Subject.CommonName, expAt.Sub(res.NextUpdate))
 	}
-
-	// Attach the OCSP response.
-	s.ocsp = res.Response
 
 	// If the OCSP status is Good, staple the certificate.
 	if res.Status == ocsp.Good {
-		s.Certificate.OCSPStaple = res.Bytes
+		c.OCSPStaple = res.Bytes
 	}
-	return nil
+
+	// Return the OCSP response.
+	return res, nil
 }
 
 // getCertificateIssuer attempts to get the issuer of the given leaf certificate by using the first
@@ -134,11 +122,16 @@ func expiresAt(cert *x509.Certificate) time.Time {
 	return cert.NotAfter.Truncate(time.Second).Add(1 * time.Second)
 }
 
-// isOCSPFresh returns true if the OCSP response is still fresh.
+// IsOCSPFresh returns true if the OCSP response is still fresh.
 //
 // This is used to determine if we need to fetch and updated response from the
 // OCSP server.
-func isOCSPFresh(res *ocsp.Response) bool {
+func IsOCSPFresh(res *ocsp.Response) bool {
+	return time.Now().Before(RefreshTime(res))
+}
+
+// RefreshTime returns the refresh time for the OCSP.
+func RefreshTime(res *ocsp.Response) time.Time {
 	nextUpdate := res.NextUpdate
 
 	// If there is an OCSP responder certificate, and it expires before the
@@ -148,7 +141,7 @@ func isOCSPFresh(res *ocsp.Response) bool {
 		nextUpdate = res.Certificate.NotAfter
 	}
 
-	// Start checking OCSP staple about halfway through validity period for good measure
-	refreshTime := res.ThisUpdate.Add(nextUpdate.Sub(res.ThisUpdate) / 2)
-	return time.Now().Before(refreshTime)
+	// Start checking OCSP staple about halfway through validity period for good
+	// measure.
+	return res.ThisUpdate.Add(nextUpdate.Sub(res.ThisUpdate) / 2)
 }

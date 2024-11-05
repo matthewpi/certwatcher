@@ -216,6 +216,9 @@ func (w *Watcher) staple(ctx context.Context, cert *tls.Certificate) error {
 		return nil
 	}
 
+	// Increment the staple total counter.
+	w.stapleTotalCounter.Add(ctx, 1)
+
 	// Attempt to staple the certificate.
 	w.logger.LogAttrs(
 		ctx,
@@ -232,6 +235,10 @@ func (w *Watcher) staple(ctx context.Context, cert *tls.Certificate) error {
 			w.logger.LogAttrs(ctx, slog.LevelInfo, "certificate has no ocsp servers, unable to staple")
 			return nil
 		}
+
+		// Increment the staple error counter.
+		w.stapleErrorCounter.Add(ctx, 1)
+
 		return fmt.Errorf("certwatcher: error stapling certificate: %w", err)
 	}
 
@@ -398,7 +405,10 @@ func (w *Watcher) watch(ctx context.Context) {
 // waitForOCSPRefresh waits for OCSP refreshes so we can keep the certificate's
 // OCSP stapling up-to-date.
 func (w *Watcher) waitForOCSPRefresh(ctx context.Context) {
-	refreshAt := ocsp.RefreshTime(w.ocsp).Sub(time.Now())
+	refreshTime := ocsp.RefreshTime(w.ocsp)
+	refreshAt := refreshTime.Sub(time.Now())
+	w.logger.LogAttrs(ctx, slog.LevelDebug, "next ocsp refresh",
+		slog.Time("refresh_time", refreshTime), slog.Duration("in", refreshAt.Round(time.Millisecond)))
 
 	t := time.NewTimer(refreshAt)
 	defer func() {
@@ -413,28 +423,25 @@ func (w *Watcher) waitForOCSPRefresh(ctx context.Context) {
 			return
 		case <-t.C:
 			// Refresh the OCSP stapling on the certificate and reset the timer.
-			t.Reset(w.refreshOCSP(ctx))
+			refreshTime = w.refreshOCSP(ctx)
+			if refreshTime.IsZero() {
+				w.logger.LogAttrs(ctx, slog.LevelWarn, "next ocsp refresh is zero, stopping OCSP refresh")
+				return
+			}
+
+			refreshAt = refreshTime.Sub(time.Now())
+			w.logger.LogAttrs(ctx, slog.LevelDebug, "next ocsp refresh",
+				slog.Time("refresh_time", refreshTime), slog.Duration("in", refreshAt.Round(time.Millisecond)))
+			t.Reset(refreshAt)
 		}
 	}
 }
 
 // refreshOCSP refreshes the OCSP stapling for the actively loaded certificate.
-func (w *Watcher) refreshOCSP(ctx context.Context) time.Duration {
+func (w *Watcher) refreshOCSP(ctx context.Context) time.Time {
 	// Lock the certificate so nothing else tries to refresh or reconfigure it.
 	w.certμ.Lock()
 	defer w.certμ.Unlock()
-
-	// Increment the staple total counter.
-	w.stapleTotalCounter.Add(ctx, 1)
-
-	// Check when the next OCSP refresh is.
-	refreshTime := ocsp.RefreshTime(w.ocsp)
-
-	// Check if we need to refresh the OCSP staple on the certificate.
-	now := time.Now()
-	if !now.Before(refreshTime) {
-		return refreshTime.Sub(now)
-	}
 
 	// Clone the currently loaded certificate.
 	//
@@ -458,22 +465,19 @@ func (w *Watcher) refreshOCSP(ctx context.Context) time.Duration {
 	if err := w.staple(ctx, cert); err != nil {
 		w.logger.LogAttrs(ctx, slog.LevelWarn, "failed to re-staple certificate", slog.Any("err", err))
 
-		// Increment the staple error counter.
-		w.stapleErrorCounter.Add(ctx, 1)
-
 		// Return a fixed duration here so we can retry later.
 		//
 		// We could also use a backoff if we wanted better control, but OCSP
 		// staples usually last multiple hours, so a retrying after a little
 		// while (even multiple times) should be more than sufficient.
-		return 30 * time.Second
+		return time.Now().Add(30 * time.Second)
 	}
 
 	// Store the newly cloned and stapled certificate.
 	w.cert.Store(cert)
 
 	// Return the next refresh time.
-	return ocsp.RefreshTime(w.ocsp).Sub(time.Now())
+	return ocsp.RefreshTime(w.ocsp)
 }
 
 // handleEvent handles incoming fsnotify events to detect when we need to reload

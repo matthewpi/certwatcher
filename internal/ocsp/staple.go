@@ -132,6 +132,10 @@ func IsOCSPFresh(res *ocsp.Response) bool {
 
 // RefreshTime returns the refresh time for the OCSP.
 func RefreshTime(res *ocsp.Response) time.Time {
+	if res == nil {
+		return time.Time{}
+	}
+
 	nextUpdate := res.NextUpdate
 
 	// If there is an OCSP responder certificate, and it expires before the

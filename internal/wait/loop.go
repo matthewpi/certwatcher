@@ -5,8 +5,6 @@ package wait
 import (
 	"context"
 	"time"
-
-	"github.com/matthewpi/backoff"
 )
 
 // ConditionWithContextFunc returns true if the condition is satisfied, or an error
@@ -27,7 +25,7 @@ type ConditionWithContextFunc func(context.Context) (done bool, err error)
 //
 // This is the common loop construct for all polling in the wait package.
 func loopConditionUntilContext(ctx context.Context, interval time.Duration, immediate bool, condition ConditionWithContextFunc) error {
-	t := backoff.NewRealTimer()
+	t := newRealTimer()
 	defer t.Stop()
 
 	doneCh := ctx.Done()

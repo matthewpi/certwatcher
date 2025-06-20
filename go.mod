@@ -6,7 +6,6 @@ toolchain go1.23.2
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0
-	github.com/matthewpi/backoff v1.0.0
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/metric v1.31.0
 	golang.org/x/crypto v0.28.0

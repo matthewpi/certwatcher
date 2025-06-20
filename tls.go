@@ -9,14 +9,13 @@ import (
 	"errors"
 	"fmt"
 
-	"golang.org/x/net/http2"
-
 	"github.com/matthewpi/certwatcher/internal/ocsp"
 )
 
+// defaultTLSConfig is the default [*tls.Config] for [DefaultTLSConfig].
 var defaultTLSConfig = &tls.Config{
 	NextProtos: []string{
-		http2.NextProtoTLS,
+		"h2",
 		"http/1.1",
 	},
 
@@ -55,13 +54,14 @@ func DefaultTLSConfig() *tls.Config {
 	return defaultTLSConfig.Clone()
 }
 
-// TLSConfig is a wrapper for the stdlib *tls.Config.
+// TLSConfig is a wrapper for the stdlib [*tls.Config].
 type TLSConfig struct {
-	// Config is the TLS config we are wrapping.
+	// Config is the [*tls.Config] we are wrapping.
 	//
-	// DO NOT pass this TLS config to a server or client, use the GetTLSConfig()
-	// method instead. If you use this TLS config, it will not have the
-	// certificate loaded from CertPath and KeyPath.
+	// DO NOT pass this [*tls.Config] to a server or client, use the
+	// [TLSConfig.GetTLSConfig] method instead. If you use this TLS
+	// config, it will not have the certificate loaded from CertPath
+	// and KeyPath.
 	Config *tls.Config
 
 	// CertPath is a path to a TLS certificate.
@@ -90,9 +90,13 @@ type TLSConfig struct {
 	tlsConfig *tls.Config
 }
 
-// GetTLSConfig returns the tls.Config for a listener. If CertPath and KeyPath
-// are set, they will be loaded into the returned config, via a certwatcher.
-// Otherwise, the TLSConfig will be returned unmodified.
+// GetTLSConfig returns the [*tls.Config] for a listener. If CertPath and
+// KeyPath are set, they will be loaded into the returned config, via a
+// certwatcher. Otherwise, the [TLSConfig.Config] will be returned unmodified.
+//
+// Subsequent invocations of this function will return an identical
+// [*tls.Config] to the first, avoiding the need to create duplicate
+// certwatchers.
 func (c *TLSConfig) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	// Useful in-case the TLSConfig was never initialized, just return nil as
 	// there is no TLS config to be provided to the caller.

@@ -37,11 +37,7 @@ var defaultTLSConfig = &tls.Config{
 	MinVersion: tls.VersionTLS12,
 	MaxVersion: tls.VersionTLS13,
 
-	CurvePreferences: []tls.CurveID{
-		tls.X25519MLKEM768,
-		tls.X25519,
-		tls.CurveP256,
-	},
+	CurvePreferences: defaultCurvePreferences,
 }
 
 // DefaultTLSConfig returns a new [*tls.Config] with sensible defaults.

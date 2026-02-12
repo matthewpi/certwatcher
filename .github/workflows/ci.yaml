@@ -10,24 +10,24 @@ on:
 
 jobs:
   tests:
-    name: Test
-    permissions:
-      contents: read
+    name: Tests
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04]
-        go: ["1.24.7", "1.25.1"]
+        go: [1.24.13, 1.25.7, 1.26.0]
+    permissions:
+      contents: read
 
     steps:
       - name: Setup Go
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version: ${{ matrix.go }}
 
       - name: Code checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: go mod download
         env:
@@ -39,10 +39,10 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: |
-          go test ./...
+          go test -v -trimpath ./...
 
       - name: go test -race
         env:
           CGO_ENABLED: 1
         run: |
-          go test -race ./...
+          go test -v -trimpath -race ./...

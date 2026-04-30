@@ -1,12 +1,12 @@
 module github.com/matthewpi/certwatcher
 
-go 1.24.0
+go 1.25.0
 
 require (
-	github.com/fsnotify/fsnotify v1.9.0
-	go.opentelemetry.io/otel v1.40.0
-	go.opentelemetry.io/otel/metric v1.40.0
-	golang.org/x/crypto v0.48.0
+	github.com/fsnotify/fsnotify v1.10.0
+	go.opentelemetry.io/otel v1.43.0
+	go.opentelemetry.io/otel/metric v1.43.0
+	golang.org/x/crypto v0.50.0
 )
 
 require (
@@ -16,6 +16,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel/trace v1.40.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	go.opentelemetry.io/otel/trace v1.43.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 )

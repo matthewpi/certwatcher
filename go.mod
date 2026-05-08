@@ -3,7 +3,7 @@ module github.com/matthewpi/certwatcher
 go 1.25.0
 
 require (
-	github.com/fsnotify/fsnotify v1.10.0
+	github.com/fsnotify/fsnotify v1.10.1
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/metric v1.43.0
 	golang.org/x/crypto v0.50.0

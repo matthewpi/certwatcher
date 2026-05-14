@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04]
-        go: [1.24.13, 1.25.7, 1.26.0]
+        go: [1.25.10, 1.26.3]
     permissions:
       contents: read
 

@@ -14,11 +14,6 @@ import (
 
 // defaultTLSConfig is the default [*tls.Config] for [DefaultTLSConfig].
 var defaultTLSConfig = &tls.Config{
-	NextProtos: []string{
-		"h2",
-		"http/1.1",
-	},
-
 	CipherSuites: []uint16{
 		// TLS 1.0 - 1.2
 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,

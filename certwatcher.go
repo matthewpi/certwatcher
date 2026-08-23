@@ -406,7 +406,7 @@ func (w *Watcher) watch(ctx context.Context) {
 // OCSP stapling up-to-date.
 func (w *Watcher) waitForOCSPRefresh(ctx context.Context) {
 	refreshTime := ocsp.RefreshTime(w.ocsp)
-	refreshAt := refreshTime.Sub(time.Now())
+	refreshAt := time.Until(refreshTime)
 	w.logger.LogAttrs(ctx, slog.LevelDebug, "next ocsp refresh",
 		slog.Time("refresh_time", refreshTime), slog.Duration("in", refreshAt.Round(time.Millisecond)))
 
@@ -429,7 +429,7 @@ func (w *Watcher) waitForOCSPRefresh(ctx context.Context) {
 				return
 			}
 
-			refreshAt = refreshTime.Sub(time.Now())
+			refreshAt = time.Until(refreshTime)
 			w.logger.LogAttrs(ctx, slog.LevelDebug, "next ocsp refresh",
 				slog.Time("refresh_time", refreshTime), slog.Duration("in", refreshAt.Round(time.Millisecond)))
 			t.Reset(refreshAt)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright (c) 2024 Matthew Penner
 
-//go:build go1.26
+//go:build go1.26 && !go1.27
 
 package certwatcher
 

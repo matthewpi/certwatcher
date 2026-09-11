@@ -17,6 +17,8 @@ Go package that provides the ability to hot-reload TLS certificates without down
 
 ## Installation
 
+Requires Go 1.26 or higher.
+
 ```bash
 go get github.com/matthewpi/certwatcher
 ```
